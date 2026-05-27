@@ -19,7 +19,7 @@ def get_pool() -> ConnectionPool:
     return _pool
 
 
-def get_redis() -> Redis:
+async def get_redis() -> Redis:
     return Redis(connection_pool=get_pool())
 
 

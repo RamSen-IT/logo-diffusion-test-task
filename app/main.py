@@ -6,12 +6,15 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import router as v1_router
 from app.core.exceptions import APIError
-from app.storage.redis_store import close_pool, init_pool
+from app.services.client_service import seed_clients
+from app.storage.redis_store import close_pool, get_redis, init_pool
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_pool()
+    redis = await get_redis()
+    await seed_clients(redis)
     yield
     await close_pool()
 
