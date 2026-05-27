@@ -14,7 +14,7 @@ SEED_CLIENTS = [
     {
         "id": "client_poor",
         "name": "Poor Client",
-        "balance": 4,
+        "balance": 7,
     },
 ]
 
