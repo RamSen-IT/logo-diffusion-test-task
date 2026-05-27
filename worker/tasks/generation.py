@@ -73,3 +73,14 @@ def run_generation(self, generation_id: str, client_id: str, cost: int) -> None:
         r.incr(metrics("failed"))
         r.incr(metrics("total"))
         raise
+    except Exception:
+        # TODO: add logging for unexpected worker errors
+        _update_status(
+            r, generation_id, "failed",
+            error_code="internal_error",
+            error_message="An unexpected error occurred",
+        )
+        _release_resources(r, client_id, cost)
+        r.incr(metrics("failed"))
+        r.incr(metrics("total"))
+        raise

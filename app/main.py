@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from redis.exceptions import RedisError
 
 from app.api.v1.router import router as v1_router
 from app.core.exceptions import APIError
@@ -33,15 +34,28 @@ async def api_error_handler(request: Request, exc: APIError):
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
-    msg = exc.errors()[0]["msg"]
+    error = exc.errors()[0]
+    msg = error["msg"]
+    if msg.startswith("Value error, "):
+        msg = msg[len("Value error, "):]
     return JSONResponse(
         status_code=400,
         content={"error": {"code": "invalid_request", "message": msg}},
     )
 
 
+@app.exception_handler(RedisError)
+async def redis_error_handler(request: Request, exc: RedisError):
+    # TODO: add logging for Redis connection errors
+    return JSONResponse(
+        status_code=503,
+        content={"error": {"code": "service_unavailable", "message": "Service temporarily unavailable"}},
+    )
+
+
 @app.exception_handler(Exception)
 async def unhandled_error_handler(request: Request, exc: Exception):
+    # TODO: add logging for unhandled errors (with stack trace)
     return JSONResponse(
         status_code=500,
         content={"error": {"code": "internal_error", "message": "Something went wrong"}},

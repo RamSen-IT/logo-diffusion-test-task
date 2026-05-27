@@ -8,10 +8,14 @@ from app.storage.redis_store import get_redis
 
 
 async def get_current_client(
-    x_api_key: str = Header(alias="X-API-Key"),
+    authorization: str = Header(),
     redis: Redis = Depends(get_redis),
 ) -> Client:
-    client = await get_client_by_key(redis, x_api_key)
+    if not authorization.startswith("Bearer "):
+        raise APIError(401, "unauthorized", "Invalid or missing API key")
+
+    api_key = authorization[7:]  # Remove "Bearer " prefix
+    client = await get_client_by_key(redis, api_key)
     if not client:
         raise APIError(401, "unauthorized", "Invalid or missing API key")
     return client
