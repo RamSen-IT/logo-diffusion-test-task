@@ -26,6 +26,11 @@ def _release_resources(r, client_id: str, cost: int) -> None:
     r.eval(_release_slot, 1, rate_slot(client_id))
 
 
+def _get_webhook_url(r, client_id: str) -> str | None:
+    url = r.hget(f"client:{client_id}", "webhook_url")
+    return url if url else None
+
+
 @celery_app.task(bind=True, max_retries=0)
 def run_generation(self, generation_id: str, client_id: str, cost: int) -> None:
     r = get_redis()
@@ -33,12 +38,17 @@ def run_generation(self, generation_id: str, client_id: str, cost: int) -> None:
         _update_status(r, generation_id, "processing")
         time.sleep(random.uniform(5, 15))
 
+        webhook_url = _get_webhook_url(r, client_id)
+
         if random.random() < 0.8:
             result_url = f"https://cdn.logodiffusion.com/fake/{generation_id}.png"
             _update_status(r, generation_id, "completed", result_url=result_url)
             from shared.redis_keys import rate_slot
             r.eval(_release_slot, 1, rate_slot(client_id))
             r.incr(metrics("completed"))
+            if webhook_url:
+                from app.services.webhook_service import dispatch_webhook
+                dispatch_webhook(webhook_url, generation_id, "completed", result_url=result_url)
         else:
             _update_status(
                 r, generation_id, "failed",
@@ -47,6 +57,9 @@ def run_generation(self, generation_id: str, client_id: str, cost: int) -> None:
             )
             _release_resources(r, client_id, cost)
             r.incr(metrics("failed"))
+            if webhook_url:
+                from app.services.webhook_service import dispatch_webhook
+                dispatch_webhook(webhook_url, generation_id, "failed")
 
         r.incr(metrics("total"))
 
