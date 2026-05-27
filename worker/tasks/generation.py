@@ -45,6 +45,7 @@ def run_generation(self, generation_id: str, client_id: str, cost: int) -> None:
             _update_status(r, generation_id, "completed", result_url=result_url)
             from shared.redis_keys import rate_slot
             r.eval(_release_slot, 1, rate_slot(client_id))
+            r.incr(metrics("total"))
             r.incr(metrics("completed"))
             if webhook_url:
                 from app.services.webhook_service import dispatch_webhook
@@ -56,12 +57,11 @@ def run_generation(self, generation_id: str, client_id: str, cost: int) -> None:
                 error_message="AI provider returned an error",
             )
             _release_resources(r, client_id, cost)
+            r.incr(metrics("total"))
             r.incr(metrics("failed"))
             if webhook_url:
                 from app.services.webhook_service import dispatch_webhook
                 dispatch_webhook(webhook_url, generation_id, "failed")
-
-        r.incr(metrics("total"))
 
     except SoftTimeLimitExceeded:
         _update_status(
