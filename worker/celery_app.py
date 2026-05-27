@@ -6,7 +6,12 @@ from app.core.config import settings
 _broker = settings.redis_url
 _backend = settings.redis_url.rsplit("/", 1)[0] + "/1"
 
-celery_app = Celery("logo_diffusion", broker=_broker, backend=_backend)
+celery_app = Celery(
+    "logo_diffusion",
+    broker=_broker,
+    backend=_backend,
+    include=["worker.tasks.generation"],
+)
 
 celery_app.conf.update(
     task_serializer="json",
